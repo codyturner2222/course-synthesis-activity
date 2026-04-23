@@ -288,7 +288,6 @@ function renderJoin() {
     <div class="join-form">
       <h2>Join Session</h2>
       <div class="input-group">
-        <input class="text-input" id="join-name" placeholder="Your Name" maxlength="30" />
         <input class="text-input" id="join-code" placeholder="Room Code" maxlength="5" style="text-transform:uppercase" />
         <button class="submit-btn" onclick="submitJoin()">Join</button>
       </div>
@@ -299,12 +298,12 @@ function renderJoin() {
 }
 
 function submitJoin() {
-  const name = document.getElementById("join-name").value.trim();
   const code = document.getElementById("join-code").value.trim().toUpperCase();
-  if (!name || !code) {
-    document.getElementById("join-error").textContent = "Please enter your name and room code.";
+  if (!code) {
+    document.getElementById("join-error").textContent = "Please enter the room code.";
     return;
   }
+  const name = "Student";
 
   socket.emit("student-join", { code, name }, (resp) => {
     if (resp.error) {
@@ -459,7 +458,7 @@ function renderStudent() {
 
   return `
     <div class="student-header">
-      <h2>Welcome, ${state.name}</h2>
+      <h2>Course Synthesis</h2>
       <p>Room: ${state.roomCode}</p>
     </div>
     ${content}
