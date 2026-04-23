@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Love, Sex, and Robots — Course Synthesis</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card-hover: #1e2130;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text-muted: #9ca3af;
+    --accent: #818cf8;
+    --accent-glow: rgba(129, 140, 248, 0.15);
+    --sd: #ef4444; --d: #f97316; --n: #a3a3a3; --a: #22c55e; --sa: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ── Landing ────────────────────────────────── */
+  .landing { text-align: center; padding-top: 60px; }
+  .landing-tag {
+    display: inline-block;
+    background: var(--accent-glow); color: var(--accent);
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.5px; padding: 6px 16px; border-radius: 20px; margin-bottom: 24px;
+  }
+  .landing h1 {
+    font-size: 32px; font-weight: 800; margin-bottom: 12px;
+    background: linear-gradient(135deg, #e4e4e7, #818cf8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .landing p { color: var(--text-muted); font-size: 15px; max-width: 480px; margin: 0 auto 40px; }
+
+  .role-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .role-btn {
+    padding: 20px 36px; border-radius: 14px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    min-width: 200px;
+  }
+  .role-btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(129,140,248,0.15); }
+  .role-btn small { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Join Form ──────────────────────────────── */
+  .join-form { text-align: center; padding-top: 80px; }
+  .join-form h2 { font-size: 24px; font-weight: 700; margin-bottom: 24px; }
+  .input-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .text-input {
+    padding: 14px 20px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 16px; width: 200px; text-align: center; outline: none;
+  }
+  .text-input:focus { border-color: var(--accent); }
+  .text-input::placeholder { color: #555; }
+  .submit-btn {
+    padding: 14px 28px; border-radius: 10px; border: none;
+    background: var(--accent); color: #fff; font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(129,140,248,0.4); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .error-msg { color: var(--sd); font-size: 13px; margin-top: 8px; }
+  .back-link { color: var(--text-muted); font-size: 13px; cursor: pointer; margin-top: 20px; display: inline-block; }
+  .back-link:hover { color: var(--accent); }
+
+  /* ── Host Dashboard ─────────────────────────── */
+  .host-header { text-align: center; margin-bottom: 32px; }
+  .room-code-display {
+    display: inline-block; background: var(--accent-glow); border: 2px dashed var(--accent);
+    border-radius: 12px; padding: 16px 32px; margin-bottom: 16px;
+  }
+  .room-code-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px; }
+  .room-code-value { font-size: 36px; font-weight: 800; color: var(--accent); letter-spacing: 6px; font-family: 'Inter', monospace; }
+  .participant-count { font-size: 14px; color: var(--text-muted); }
+  .participant-count span { color: var(--accent); font-weight: 600; }
+
+  /* Statement list (host) */
+  .stmt-list { display: flex; flex-direction: column; gap: 12px; }
+  .stmt-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px; cursor: pointer; transition: all 0.2s; display: flex; align-items: flex-start; gap: 16px;
+  }
+  .stmt-item:hover { border-color: rgba(129,140,248,0.3); background: var(--card-hover); }
+  .stmt-item.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+  .stmt-item.revealed { opacity: 0.6; }
+  .stmt-num {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--accent-glow);
+    color: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .stmt-content { flex: 1; }
+  .stmt-unit-tag {
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 2px 8px;
+    border-radius: 4px; display: inline-block; margin-bottom: 6px;
+  }
+  .stmt-preview { font-size: 14px; color: var(--text); line-height: 1.5; }
+  .stmt-status { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .vote-badge {
+    font-size: 12px; padding: 4px 10px; border-radius: 6px; font-weight: 600;
+    background: rgba(255,255,255,0.05); color: var(--text-muted);
+  }
+  .vote-badge.has-votes { background: rgba(34,197,94,0.15); color: var(--a); }
+
+  /* Host active statement panel */
+  .active-panel {
+    background: var(--card); border: 2px solid var(--accent); border-radius: 16px;
+    padding: 32px; margin-bottom: 32px; position: relative;
+  }
+  .active-panel .stmt-unit-tag { margin-bottom: 12px; }
+  .active-panel .stmt-text { font-size: 18px; font-weight: 500; line-height: 1.65; margin-bottom: 24px; }
+  .active-panel .vote-status { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+  .active-panel .vote-status span { color: var(--accent); font-weight: 600; }
+  .host-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .action-btn {
+    padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .action-btn.primary:hover { box-shadow: 0 4px 15px rgba(129,140,248,0.4); }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Results bar chart */
+  .results-chart { margin-top: 24px; }
+  .chart-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .chart-label { width: 130px; font-size: 13px; font-weight: 500; text-align: right; flex-shrink: 0; }
+  .chart-bar-bg { flex: 1; height: 32px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden; position: relative; }
+  .chart-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; min-width: 0; }
+  .chart-bar-fill span { font-size: 12px; font-weight: 700; color: #fff; }
+  .chart-count { width: 40px; font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
+  /* ── Student View ───────────────────────────── */
+  .student-header { text-align: center; margin-bottom: 32px; }
+  .student-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .student-header p { color: var(--text-muted); font-size: 14px; }
+
+  .waiting-msg {
+    text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 16px;
+  }
+  .waiting-msg .pulse {
+    display: inline-block; width: 12px; height: 12px; background: var(--accent);
+    border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .student-statement {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; margin-bottom: 24px;
+  }
+  .student-statement .stmt-text { font-size: 18px; font-weight: 500; line-height: 1.65; margin-bottom: 28px; }
+
+  .likert-scale { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .likert-btn {
+    flex: 1; min-width: 110px; padding: 14px 8px; border: 1.5px solid var(--border);
+    border-radius: 10px; background: transparent; color: var(--text-muted);
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .likert-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); transform: translateY(-1px); }
+  .likert-btn.selected { transform: translateY(-1px); font-weight: 600; color: #fff; }
+  .likert-btn[data-v="1"].selected { background: var(--sd); border-color: var(--sd); box-shadow: 0 4px 15px rgba(239,68,68,0.3); }
+  .likert-btn[data-v="2"].selected { background: var(--d); border-color: var(--d); box-shadow: 0 4px 15px rgba(249,115,22,0.3); }
+  .likert-btn[data-v="3"].selected { background: var(--n); border-color: var(--n); box-shadow: 0 4px 15px rgba(163,163,163,0.3); }
+  .likert-btn[data-v="4"].selected { background: var(--a); border-color: var(--a); box-shadow: 0 4px 15px rgba(34,197,94,0.3); }
+  .likert-btn[data-v="5"].selected { background: var(--sa); border-color: var(--sa); box-shadow: 0 4px 15px rgba(59,130,246,0.3); }
+
+  .likert-btn.locked { cursor: not-allowed; opacity: 0.5; }
+  .likert-btn.locked:hover { transform: none; }
+  .likert-btn.locked.selected { opacity: 1; }
+
+  .vote-submitted-msg { text-align: center; color: var(--a); font-size: 14px; font-weight: 500; margin-top: 16px; }
+
+  .session-ended-overlay {
+    position: fixed; inset: 0; background: rgba(15,17,23,0.9); display: flex;
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  .session-ended-overlay .msg { text-align: center; }
+  .session-ended-overlay h2 { font-size: 24px; margin-bottom: 8px; }
+  .session-ended-overlay p { color: var(--text-muted); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .container { padding: 24px 16px 60px; }
+    .landing h1 { font-size: 24px; }
+    .room-code-value { font-size: 28px; letter-spacing: 4px; }
+    .active-panel .stmt-text, .student-statement .stmt-text { font-size: 16px; }
+    .likert-scale { gap: 6px; }
+    .likert-btn { min-width: 90px; font-size: 11px; padding: 10px 4px; }
+    .chart-label { width: 100px; font-size: 11px; }
+  }
+  @media (max-width: 400px) {
+    .likert-scale { flex-direction: column; }
+    .likert-btn { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container" id="app"></div>
+
+<script>
+const socket = io();
+const labels = ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"];
+const barColors = ["#ef4444", "#f97316", "#a3a3a3", "#22c55e", "#3b82f6"];
+
+let state = {
+  view: "landing", // landing | join | host | student
+  roomCode: null,
+  statements: [],
+  name: "",
+  // Host state
+  activeStatementId: null,
+  participantCount: 0,
+  voteCounts: {},    // statementId -> { voted, total }
+  results: {},       // statementId -> { tally, totalVoters }
+  revealed: {},      // statementId -> bool
+  // Student state
+  myVotes: {},       // statementId -> value
+  locked: {},        // statementId -> bool
+  studentResults: {},
+};
+
+function render() {
+  const app = document.getElementById("app");
+  switch (state.view) {
+    case "landing": app.innerHTML = renderLanding(); break;
+    case "join": app.innerHTML = renderJoin(); break;
+    case "host": app.innerHTML = renderHost(); break;
+    case "student": app.innerHTML = renderStudent(); break;
+  }
+}
+
+// ── Landing ──────────────────────────────────
+function renderLanding() {
+  return `
+    <div class="landing">
+      <div class="landing-tag">Final Synthesis Activity</div>
+      <h1>Love, Sex, and Robots</h1>
+      <p>An interactive polling tool for exploring ethical grey areas across the entire semester.</p>
+      <div class="role-buttons">
+        <button class="role-btn" onclick="goHost()">
+          Host Session<small>Create a room for your class</small>
+        </button>
+        <button class="role-btn" onclick="goJoin()">
+          Join Session<small>Enter a room code</small>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function goHost() {
+  socket.emit("host-create", (data) => {
+    state.view = "host";
+    state.roomCode = data.code;
+    state.statements = data.statements;
+    state.participantCount = 0;
+    render();
+  });
+}
+
+function goJoin() {
+  state.view = "join";
+  render();
+}
+
+// ── Join ─────────────────────────────────────
+function renderJoin() {
+  return `
+    <div class="join-form">
+      <h2>Join Session</h2>
+      <div class="input-group">
+        <input class="text-input" id="join-name" placeholder="Your Name" maxlength="30" />
+        <input class="text-input" id="join-code" placeholder="Room Code" maxlength="5" style="text-transform:uppercase" />
+        <button class="submit-btn" onclick="submitJoin()">Join</button>
+      </div>
+      <div class="error-msg" id="join-error"></div>
+      <div class="back-link" onclick="state.view='landing';render();">&larr; Back</div>
+    </div>
+  `;
+}
+
+function submitJoin() {
+  const name = document.getElementById("join-name").value.trim();
+  const code = document.getElementById("join-code").value.trim().toUpperCase();
+  if (!name || !code) {
+    document.getElementById("join-error").textContent = "Please enter your name and room code.";
+    return;
+  }
+
+  socket.emit("student-join", { code, name }, (resp) => {
+    if (resp.error) {
+      document.getElementById("join-error").textContent = resp.error;
+      return;
+    }
+    state.view = "student";
+    state.roomCode = code;
+    state.name = name;
+    state.statements = resp.statements;
+    state.activeStatementId = resp.activeStatement;
+    state.revealed = resp.revealed || {};
+    state.locked = resp.locked || {};
+    render();
+  });
+}
+
+// ── Host View ────────────────────────────────
+function renderHost() {
+  const active = state.statements.find(s => s.id === state.activeStatementId);
+  const vc = state.voteCounts[state.activeStatementId] || { voted: 0, total: state.participantCount };
+  const res = state.results[state.activeStatementId];
+  const isRevealed = state.revealed[state.activeStatementId];
+
+  let activePanel = "";
+  if (active) {
+    activePanel = `
+      <div class="active-panel">
+        <div class="stmt-unit-tag">${active.unit}</div>
+        <div class="stmt-text">${active.text}</div>
+        <div class="vote-status">
+          <span>${vc.voted}</span> of <span>${state.participantCount}</span> students have voted
+        </div>
+        <div class="host-actions">
+          <button class="action-btn primary" onclick="revealResults()" ${isRevealed ? 'disabled' : ''}>
+            ${isRevealed ? 'Results Revealed' : 'Reveal Results'}
+          </button>
+          <button class="action-btn" onclick="resetStatement()">Reset Votes</button>
+        </div>
+        ${isRevealed && res ? renderChart(res) : ''}
+      </div>
+    `;
+  }
+
+  const stmtList = state.statements.map(s => {
+    const isActive = s.id === state.activeStatementId;
+    const isRev = state.revealed[s.id];
+    const vc2 = state.voteCounts[s.id];
+    const badge = vc2 ? `<span class="vote-badge has-votes">${vc2.voted}/${vc2.total}</span>` : '';
+    const revBadge = isRev ? '<span class="vote-badge" style="color:#22c55e">&#10003;</span>' : '';
+    return `
+      <div class="stmt-item ${isActive ? 'active' : ''} ${isRev ? 'revealed' : ''}" onclick="selectStatement(${s.id})">
+        <div class="stmt-num">${s.id}</div>
+        <div class="stmt-content">
+          <div class="stmt-unit-tag">${s.unit}</div>
+          <div class="stmt-preview">${s.text}</div>
+        </div>
+        <div class="stmt-status">${badge}${revBadge}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="host-header">
+      <div class="room-code-display">
+        <div class="room-code-label">Room Code</div>
+        <div class="room-code-value">${state.roomCode}</div>
+      </div>
+      <div class="participant-count"><span>${state.participantCount}</span> student${state.participantCount !== 1 ? 's' : ''} connected</div>
+    </div>
+    ${activePanel}
+    <div class="stmt-list">${stmtList}</div>
+  `;
+}
+
+function selectStatement(id) {
+  state.activeStatementId = id;
+  socket.emit("host-select-statement", { code: state.roomCode, statementId: id });
+  render();
+}
+
+function revealResults() {
+  socket.emit("host-reveal", { code: state.roomCode, statementId: state.activeStatementId });
+}
+
+function resetStatement() {
+  socket.emit("host-reset-statement", { code: state.roomCode, statementId: state.activeStatementId });
+  delete state.results[state.activeStatementId];
+  delete state.revealed[state.activeStatementId];
+  delete state.voteCounts[state.activeStatementId];
+  render();
+}
+
+function renderChart(res) {
+  const maxVotes = Math.max(...Object.values(res.tally), 1);
+  const rows = labels.map((label, i) => {
+    const count = res.tally[i + 1] || 0;
+    const pct = res.totalVoters > 0 ? Math.round((count / res.totalVoters) * 100) : 0;
+    const width = maxVotes > 0 ? (count / maxVotes) * 100 : 0;
+    return `
+      <div class="chart-row">
+        <div class="chart-label">${label}</div>
+        <div class="chart-bar-bg">
+          <div class="chart-bar-fill" style="width:${width}%;background:${barColors[i]}">
+            ${count > 0 ? `<span>${pct}%</span>` : ''}
+          </div>
+        </div>
+        <div class="chart-count">${count}</div>
+      </div>
+    `;
+  }).join("");
+  return `<div class="results-chart">${rows}</div>`;
+}
+
+// ── Student View ─────────────────────────────
+function renderStudent() {
+  const active = state.statements.find(s => s.id === state.activeStatementId);
+  const isLocked = state.locked[state.activeStatementId];
+  const myVote = state.myVotes[state.activeStatementId];
+  const res = state.studentResults[state.activeStatementId];
+
+  let content = "";
+  if (!active) {
+    content = `
+      <div class="waiting-msg">
+        <div class="pulse"></div>
+        Waiting for the host to select a statement...
+      </div>
+    `;
+  } else {
+    const likertBtns = labels.map((label, i) => {
+      const val = i + 1;
+      const selected = myVote === val ? "selected" : "";
+      const locked = isLocked ? "locked" : "";
+      return `<button class="likert-btn ${selected} ${locked}" data-v="${val}"
+        onclick="${isLocked ? '' : `vote(${active.id},${val})`}"
+        ${isLocked ? 'disabled' : ''}>${label}</button>`;
+    }).join("");
+
+    content = `
+      <div class="student-statement">
+        <div class="stmt-unit-tag">${active.unit}</div>
+        <div class="stmt-text">${active.text}</div>
+        <div class="likert-scale">${likertBtns}</div>
+        ${myVote && !isLocked ? '<div class="vote-submitted-msg">Vote submitted! You can change it until the host reveals results.</div>' : ''}
+        ${isLocked && myVote ? '<div class="vote-submitted-msg">Voting is closed.</div>' : ''}
+        ${isLocked && !myVote ? '<div class="vote-submitted-msg" style="color:var(--text-muted)">Voting closed before you responded.</div>' : ''}
+        ${res ? renderChart(res) : ''}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="student-header">
+      <h2>Welcome, ${state.name}</h2>
+      <p>Room: ${state.roomCode}</p>
+    </div>
+    ${content}
+  `;
+}
+
+function vote(statementId, value) {
+  if (state.locked[statementId]) return;
+  state.myVotes[statementId] = value;
+  socket.emit("student-vote", { code: state.roomCode, statementId, value });
+  render();
+}
+
+// ── Socket Events ────────────────────────────
+socket.on("participant-joined", ({ name, count }) => {
+  state.participantCount = count;
+  // Update vote counts totals
+  for (const key in state.voteCounts) state.voteCounts[key].total = count;
+  render();
+});
+
+socket.on("participant-left", ({ name, count }) => {
+  state.participantCount = count;
+  for (const key in state.voteCounts) state.voteCounts[key].total = count;
+  render();
+});
+
+socket.on("statement-activated", ({ statementId }) => {
+  state.activeStatementId = statementId;
+  render();
+  // Scroll to top on student view
+  if (state.view === "student") window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+socket.on("vote-update", ({ statementId, votedCount, totalParticipants }) => {
+  state.voteCounts[statementId] = { voted: votedCount, total: totalParticipants };
+  state.participantCount = totalParticipants;
+  render();
+});
+
+socket.on("results-revealed", ({ statementId, tally, totalVoters }) => {
+  state.revealed[statementId] = true;
+  state.locked[statementId] = true;
+  const res = { tally, totalVoters };
+  state.results[statementId] = res;
+  state.studentResults[statementId] = res;
+  render();
+});
+
+socket.on("voting-locked", ({ statementId }) => {
+  state.locked[statementId] = true;
+  render();
+});
+
+socket.on("statement-reset", ({ statementId }) => {
+  delete state.myVotes[statementId];
+  delete state.revealed[statementId];
+  delete state.locked[statementId];
+  delete state.results[statementId];
+  delete state.studentResults[statementId];
+  delete state.voteCounts[statementId];
+  render();
+});
+
+socket.on("session-ended", () => {
+  document.getElementById("app").innerHTML = `
+    <div class="session-ended-overlay">
+      <div class="msg">
+        <h2>Session Ended</h2>
+        <p>The host has closed this session.</p>
+      </div>
+    </div>
+  `;
+});
+
+// Initial render
+render();
+</script>
+
+</body>
+</html>
